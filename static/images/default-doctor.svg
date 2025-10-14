@@ -1,0 +1,28 @@
+<svg width="300" height="300" viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Circle -->
+  <circle cx="150" cy="150" r="150" fill="#f8fafc"/>
+  
+  <!-- Doctor Icon Background -->
+  <circle cx="150" cy="150" r="120" fill="#e2e8f0"/>
+  
+  <!-- Doctor Figure -->
+  <!-- Head -->
+  <circle cx="150" cy="110" r="35" fill="#64748b"/>
+  
+  <!-- Body -->
+  <ellipse cx="150" cy="200" rx="45" ry="60" fill="#64748b"/>
+  
+  <!-- Stethoscope -->
+  <path d="M120 140 Q130 150 140 160 Q150 170 160 160 Q170 150 180 140" 
+        stroke="#2563eb" stroke-width="4" fill="none"/>
+  <circle cx="120" cy="140" r="6" fill="#2563eb"/>
+  <circle cx="180" cy="140" r="6" fill="#2563eb"/>
+  
+  <!-- Medical Cross -->
+  <rect x="145" y="85" width="10" height="20" fill="#ffffff"/>
+  <rect x="140" y="90" width="20" height="10" fill="#ffffff"/>
+  
+  <!-- Text -->
+  <text x="150" y="270" text-anchor="middle" font-family="Arial, sans-serif" 
+        font-size="16" font-weight="600" fill="#475569">Doctor</text>
+</svg>

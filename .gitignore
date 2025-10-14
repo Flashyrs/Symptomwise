@@ -1,0 +1,39 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Django migrations (optional to ignore, depends if you want them in repo)
+*/migrations/*.pyc
+*/migrations/*.py[cod]
+*/migrations/__pycache__/
+
+# Django local settings
+*.sqlite3
+db.sqlite3
+*.db
+*.sql
+
+settings.py
+settings_backup.py
+# Django media and static files (if generated)
+
+staticfiles/
+
+# Virtual environment folders
+venv/
+env/
+ENV/
+*.log
+logs/
+# Environment variables
+.env
+*.env
+
+# Secret keys, API keys
+*.key
+*.pem
+*.pyc
+*.pyo
+*.pyd
+*.swp

@@ -1,0 +1,10 @@
+# This is a placeholder for your SymptomWise logo
+# Please replace this file with your actual PNG logo
+# Recommended size: 200x60 pixels or similar aspect ratio
+# Format: PNG with transparent background for best results
+
+# To add your logo:
+# 1. Save your logo as 'logo.png' in the static/images/ directory
+# 2. Make sure it's a PNG file with transparent background
+# 3. Recommended dimensions: 200x60px or 300x90px
+# 4. The logo will appear in the header and footer automatically

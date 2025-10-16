@@ -1,4 +1,4 @@
-# 🏥 Hospital Appointment Management System
+# 🏥 SymptomWise
 
 A comprehensive multi-tenant hospital management system with AI-powered medical chatbot, appointment booking, and WhatsApp integration.
 
@@ -127,7 +127,7 @@ Appointment/
 1. **Clone the repository**
    ```bash
    git clone https://github.com/Flashyrs/Symptomwise
-   cd hospital-appointment
+   cd symptomwise
    ```
 
 2. **Create virtual environment**
@@ -328,13 +328,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ### Community
 - Create an issue for bug reports
-- Join our Discord community
-- Follow us on Twitter [@SymptomWise](https://twitter.com/symptomwise)
+
 
 ### Professional Support
 For enterprise support and custom development:
-- Email: support@symptomwise.com
-- Website: https://symptomwise.com
+- Email: symptomwiseprivatelimited@gmail.com | roshanshuklayt@gmail.com   
+
 
 ## 🙏 Acknowledgments
 

@@ -71,6 +71,18 @@ A comprehensive multi-tenant hospital management system with AI-powered medical 
 - **Environment**: Environment variable configuration
 - **CORS**: Cross-origin resource sharing support
 
+## ⚠️ Performance & Load Testing Notes
+
+This system is designed with explicit resource constraints in mind, particularly for AI inference workloads.
+
+- AI inference is treated as a scarce resource and protected via concurrency limits to prevent GPU memory exhaustion.
+- A hot-path in-memory cache is used to serve repeated medical queries with low latency, while new queries fall back to full inference.
+- The system was load-tested using Locust under controlled request pacing to identify safe concurrency limits on constrained hardware.
+- Higher concurrency configurations were intentionally rejected after observing early saturation signals.
+
+These decisions prioritize predictable behavior and graceful degradation over peak throughput.
+
+
 ## 📁 Project Structure
 
 ```
@@ -361,3 +373,25 @@ For enterprise support and custom development:
 **Made with ❤️ for better healthcare accessibility**
 
 *This project aims to bridge the gap between patients and healthcare providers through intelligent technology and seamless user experience.*
+---
+
+## 🧪 Load Testing Notes (Experimental)
+
+This branch contains experimental performance validation work and is not representative of production benchmarks.
+
+### Setup
+- Tool: Locust
+- Environment: Local, resource-constrained machine
+- Request pacing was controlled to avoid artificial spikes
+- AI inference concurrency was explicitly limited
+
+### Observations
+- Cached queries consistently returned with low latency
+- New queries triggered full AI inference and higher tail latency
+- Concurrency levels beyond safe thresholds caused early saturation and were intentionally rejected
+
+### Example Observation Graph
+
+![Locust Latency](graphs/locust_latency.png)
+
+> Note: Results reflect local testing behavior only and should not be interpreted as production-scale metrics.

@@ -99,23 +99,98 @@ def chat_stream(request):
         # Generate streaming response
         def generate_response():
             try:
-                # Call Ollama API
-                payload = {
-                    "model": MODEL_NAME,
-                    "prompt": user_message,
-                    "stream": True
-                }
+                from .ai_logger import log_ai_interaction
+                from .ollama_limiter import ollama_semaphore
+                from .ai_cache import get_cached_response, set_cached_response
                 
-                # Try to connect to Ollama API with timeout
-                try:
-                    response = requests.post(OLLAMA_API_URL, json=payload, stream=True, timeout=10)
+                # --- CACHE CHECK ---
+                cached_resp = get_cached_response(user_message)
+                if cached_resp:
+                    # Cache hit! Return instantly
+                    # Send entire response as one token for speed
+                    yield f"data: {json.dumps({'token': cached_resp})}\\n\\n"
                     
-                    if response.status_code != 200:
-                        logger.warning(f"Ollama API returned status {response.status_code}")
-                        yield f"data: {json.dumps({'error': 'AI service temporarily unavailable', 'fallback_response': get_fallback_response(user_message)})}\\n\\n"
-                        return
+                    # Process recommendations
+                    conversation_stage = request.session.get('conversation_stage', 'initial')
+                    recommendations = process_medical_response(cached_resp, user_location, user_message, conversation_stage)
+                    yield f"data: {json.dumps({'recommendations': recommendations, 'done': True})}\\n\\n"
+                    return
+                # -------------------
+
+                # Try to connect to Ollama API with timeout
+                start_time = time.time()
+                
+                try:
+                    # Acquire semaphore to limit concurrent heavy AI loads
+                    acquired = ollama_semaphore.acquire(blocking=True, timeout=5)
+                    if not acquired:
+                         yield f"data: {json.dumps({'error': 'System busy, please try again later.', 'fallback_response': get_fallback_response(user_message)})}\\n\\n"
+                         return
+
+                    try:
+                        # Call Ollama API
+                        payload = {
+                            "model": MODEL_NAME,
+                            "prompt": user_message,
+                            "stream": True
+                        }
                         
+                        response = requests.post(OLLAMA_API_URL, json=payload, stream=True, timeout=10)
+                        
+                        if response.status_code != 200:
+                            duration = time.time() - start_time
+                            logger.warning(f"Ollama API returned status {response.status_code}")
+                            log_ai_interaction("WEB_UI", "ERROR", duration, "", f"Status {response.status_code}")
+                            yield f"data: {json.dumps({'error': 'AI service temporarily unavailable', 'fallback_response': get_fallback_response(user_message)})}\\n\\n"
+                            return
+                            
+                        full_response = ""
+                        
+                        for line in response.iter_lines():
+                            if line:
+                                try:
+                                    chunk = json.loads(line.decode('utf-8'))
+                                    if 'response' in chunk:
+                                        token = chunk['response']
+                                        full_response += token
+                                        
+                                        # Send token to frontend
+                                        yield f"data: {json.dumps({'token': token})}\\n\\n"
+                                        
+                                        # Add small delay for animation effect
+                                        time.sleep(0.02)
+                                        
+                                    if chunk.get('done', False):
+                                        # Log success
+                                        duration = time.time() - start_time
+                                        log_ai_interaction("WEB_UI", "SUCCESS", duration, full_response[:50] + "...")
+                                        
+                                        # --- SAVE TO CACHE ---
+                                        set_cached_response(user_message, full_response)
+                                        # ---------------------
+                                        
+                                    if chunk.get('done', False):
+                                        # Get conversation stage from session
+                                        conversation_stage = request.session.get('conversation_stage', 'initial')
+                                        
+                                        # Process the complete response for medical recommendations
+                                        recommendations = process_medical_response(full_response, user_location, user_message, conversation_stage)
+                                        
+                                        # Update conversation stage in session
+                                        request.session['conversation_stage'] = recommendations.get('conversation_stage', 'initial')
+                                        
+                                        yield f"data: {json.dumps({'recommendations': recommendations, 'done': True})}\\n\\n"
+                                        break
+                                        
+                                except json.JSONDecodeError:
+                                    continue
+                    finally:
+                        # Release semaphore immediately
+                        ollama_semaphore.release()
+
                 except requests.exceptions.RequestException as e:
+                    duration = time.time() - start_time
+                    log_ai_interaction("WEB_UI", "ERROR", duration, "", str(e))
                     logger.error(f"Ollama API connection failed: {str(e)}")
                     # Provide fallback response when Ollama is not available
                     fallback_response = get_fallback_response(user_message)
@@ -127,39 +202,7 @@ def chat_stream(request):
                     request.session['conversation_stage'] = recommendations.get('conversation_stage', 'initial')
                     yield f"data: {json.dumps({'recommendations': recommendations, 'done': True})}\\n\\n"
                     return
-                
-                full_response = ""
-                
-                for line in response.iter_lines():
-                    if line:
-                        try:
-                            chunk = json.loads(line.decode('utf-8'))
-                            if 'response' in chunk:
-                                token = chunk['response']
-                                full_response += token
-                                
-                                # Send token to frontend
-                                yield f"data: {json.dumps({'token': token})}\\n\\n"
-                                
-                                # Add small delay for animation effect
-                                time.sleep(0.02)
-                                
-                            if chunk.get('done', False):
-                                # Get conversation stage from session
-                                conversation_stage = request.session.get('conversation_stage', 'initial')
-                                
-                                # Process the complete response for medical recommendations
-                                recommendations = process_medical_response(full_response, user_location, user_message, conversation_stage)
-                                
-                                # Update conversation stage in session
-                                request.session['conversation_stage'] = recommendations.get('conversation_stage', 'initial')
-                                
-                                yield f"data: {json.dumps({'recommendations': recommendations, 'done': True})}\\n\\n"
-                                break
-                                
-                        except json.JSONDecodeError:
-                            continue
-                            
+
             except Exception as e:
                 logger.error(f"Error in chat stream: {str(e)}")
                 # Provide fallback response on any error

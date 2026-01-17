@@ -1,10 +1,10 @@
-FROM hf.co/BioMistral/BioMistral-7B-GGUF:Q4_K_M
+FROM llama3.2
 
 
 PARAMETER temperature 0.1
 
 
-PARAMETER num_ctx 4096
+PARAMETER num_ctx 2048
 
 
 SYSTEM """You are SymptomWise, an AI medical assistant designed to help patients understand their symptoms and guide them to appropriate healthcare. You are professional, empathetic, and evidence-based.

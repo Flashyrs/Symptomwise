@@ -687,8 +687,8 @@ def system_status(request):
 def all_doctors(request):
     """Show all doctors page with safe queries"""
     try:
-        # Get all doctors safely
-        doctors = Doctor.objects.filter(is_available=True)
+        # Get all doctors safely with optimized query
+        doctors = Doctor.objects.select_related('hospital', 'category', 'specialty').filter(is_available=True)
         selected_hospital = None
         
         # Get all hospitals for filter dropdown

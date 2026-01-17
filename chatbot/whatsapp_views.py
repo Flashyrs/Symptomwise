@@ -164,7 +164,7 @@ def whatsapp_webhook(request):
     except Exception as e:
         logger.error(f"WhatsApp webhook error for {request.POST.get('From')}: {str(e)}")
         response = MessagingResponse()
-        response.message("❌ Sorry, a critical error occurred. Please try again later.")
+        response.message("❌ I'm momentarily unavailable. If this is an emergency, please call *108* immediately.")
         return HttpResponse(str(response), content_type='text/xml')
 
 def process_whatsapp_message(from_number, message_body):
@@ -211,7 +211,7 @@ def process_whatsapp_message(from_number, message_body):
             
     except Exception as e:
         logger.error(f"Error processing WhatsApp message for {from_number}: {str(e)}")
-        return "Sorry, I encountered an internal error. Please try again later."
+        return "I'm having a brief technical hiccup. Please try again, or visit our website to book an appointment: https://symptomwise.loca.lt/appointment/"
 
 def handle_welcome_state(from_number, message_body, session):
     greetings = ['hi', 'hello', 'hey', 'start', 'hola']
@@ -453,25 +453,72 @@ def get_ai_response(message, session):
             "stream": False
         }
         
-        response = requests.post(
-            "http://localhost:11434/api/generate",
-            json=payload,
-            timeout=30
-        )
+        start_time = time.time()
+        from .ai_logger import log_ai_interaction
+        from .ollama_limiter import ollama_semaphore
+        from .ai_cache import get_cached_response, set_cached_response
         
-        if response.status_code == 200:
-            result = response.json()
-            return result.get('response', 'I apologize, but I cannot process your request right now.')
-        else:
-            logger.error(f"Ollama API error: Status {response.status_code}, Response: {response.text}")
-            return "I'm having trouble connecting to my medical knowledge base. Please try again."
+        # --- CACHE CHECK ---
+        # Note: We use full_prompt as key which includes history.
+        # This is less likely to hit than just user message, but safer.
+        cached_resp = get_cached_response(full_prompt)
+        if cached_resp:
+            logger.info(f"Cache hit for WhatsApp prompt: {full_prompt[:30]}...")
+            return cached_resp
+        # -------------------
+        
+        try:
+            # Acquire semaphore to limit concurrent usage
+            # Use timeout to fail fast if system is overloaded
+            if not ollama_semaphore.acquire(timeout=5):
+                 logger.warning("Ollama system overloaded - rejected WhatsApp request")
+                 return "I'm currently assisting too many patients. Please try again in 30 seconds."
+
+            try:
+                response = requests.post(
+                    "http://127.0.0.1:11434/api/generate",
+                    json=payload,
+                    timeout=30  # Increased timeout for load
+                )
+                duration = time.time() - start_time
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    response_text = result.get('response', '')
+                    
+                    # --- SAVE TO CACHE ---
+                    if response_text:
+                        set_cached_response(full_prompt, response_text)
+                    # ---------------------
+                    
+                    log_ai_interaction("WHATSAPP", "SUCCESS", duration, response_text[:50] + "...")
+                    return response_text if response_text else 'I apologize, but I cannot process your request right now.'
+                else:
+                    log_ai_interaction("WHATSAPP", "ERROR", duration, "", f"Status {response.status_code} - {response.text}")
+                    logger.error(f"Ollama API error: Status {response.status_code}, Response: {response.text}")
+                    return "I'm having trouble connecting to my medical knowledge base. Please try again."
+            finally:
+                ollama_semaphore.release()
+                
+        except requests.exceptions.Timeout:
+            duration = time.time() - start_time
+            log_ai_interaction("WHATSAPP", "TIMEOUT", duration, "", "Request timed out")
+            logger.error("Ollama API timed out.")
+            return "I'm currently experiencing high traffic. Please try again in a moment."
+        except requests.exceptions.ConnectionError:
+            duration = time.time() - start_time
+            log_ai_interaction("WHATSAPP", "CONNECTION_ERROR", duration, "", "Connection refused")
+            logger.error("Ollama connection error: Is http://127.0.0.1:11434/api/generate running?")
+            return "I'm experiencing technical difficulties. My AI core is offline. Please try again later."
+        except Exception as e:
+            duration = time.time() - start_time
+            log_ai_interaction("WHATSAPP", "EXCEPTION", duration, "", str(e))
+            logger.error(f"Error getting AI response: {str(e)}")
+            return "I'm experiencing technical difficulties. Please try again later."
             
-    except requests.exceptions.ConnectionError:
-        logger.error("Ollama connection error: Is http://localhost:11434/api/generate running?")
-        return "I'm experiencing technical difficulties. My AI core is offline. Please try again later."
     except Exception as e:
-        logger.error(f"Error getting AI response: {str(e)}")
-        return "I'm experiencing technical difficulties. Please try again later."
+        logger.error(f"Unexpected error in get_ai_response: {str(e)}")
+        return "I'm currently unable to process requests."
 
 def process_medical_response_whatsapp(response_text, user_location, user_message):
     try:

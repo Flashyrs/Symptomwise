@@ -283,22 +283,16 @@ Each hospital operates as an independent tenant with:
 
 ## 🚀 Deployment
 
-### Production Checklist
-- [ ] Set `DEBUG=False`
-- [ ] Configure production database
-- [ ] Set up static file serving
-- [ ] Configure email backend
-- [ ] Set up SSL certificates
-- [ ] Configure domain and subdomains
-- [ ] Set up monitoring and logging
-- [ ] Configure backup strategy
+The architecture is compatible with common PaaS and VPS environments.
+Production deployment requires:
 
-### Deployment Options
-- **Heroku**: Ready for Heroku deployment
-- **Railway**: Railway.app compatible
-- **Render**: Render.com ready
-- **VPS**: Traditional server deployment
-- **Docker**: Containerization ready
+-DEBUG=False
+
+-PostgreSQL configuration
+
+-Proper secret management
+
+-HTTPS and domain configuration
 
 ## 🤝 Contributing
 
